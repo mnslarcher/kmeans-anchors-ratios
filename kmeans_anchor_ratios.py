@@ -12,7 +12,17 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("K-Means anchor rations calculator.")
+    parser = argparse.ArgumentParser(
+        "K-Means anchor rations calculator.",
+        usage="python kmeans_anchor_ratios.py \\\n"
+        "           --annotations-path path/to/your_coco_annotations.json \\\n"
+        "           --input-size 512 \\\n"
+        "           --scale-bboxes True \\\n"
+        "           --num-runs 10 \\\n"
+        "           --num-anchor-ratios 3 \\\n"
+        "           --max-iter 300 \\\n"
+        "           --min-size 0",
+    )
     parser.add_argument(
         "--annotations-path",
         type=str,
@@ -245,7 +255,7 @@ def get_optimal_anchor_ratios(
         f"K-Means ({num_runs} run{'s' if num_runs > 1 else ''})",
         ncols=88,
     )
-    for i in pbar:
+    for _ in pbar:
         centroids = kmeans(bboxes, num_clusters=num_anchor_ratios, max_iter=max_iter)
         avg_iou_perc = avg_iou(bboxes, centroids) * 100
         if np.isfinite(avg_iou_perc):
