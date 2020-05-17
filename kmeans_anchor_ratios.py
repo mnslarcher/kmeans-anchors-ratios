@@ -280,15 +280,15 @@ def get_optimal_anchor_ratios(
     anchor_ratios = sorted([tuple(ar) for ar in anchor_ratios])
     logger.info(
         f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        f"Optimal anchor ratios (avg. IoU: {avg_iou_perc_list[avg_iou_argmax]:.2f}%): "
-        f"{anchor_ratios}"
-    )
-    logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
         f"Runs avg. IoU: {np.mean(avg_iou_perc_list):.2f}% ± "
         f"{np.std(avg_iou_perc_list):.2f}% "
         f"(mean ± std. dev. of {len(centroids_list)} runs, "
         f"{num_runs - len(centroids_list)} skipped)"
+    )
+    logger.info(
+        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+        f"Optimal anchor ratios (avg. IoU: {avg_iou_perc_list[avg_iou_argmax]:.2f}%): "
+        f"{anchor_ratios}"
     )
     return anchor_ratios
 
