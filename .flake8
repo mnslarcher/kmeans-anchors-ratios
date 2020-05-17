@@ -1,0 +1,19 @@
+[flake8]
+# E203: black and flake8 disagree on whitespace before ':'
+# W503: black and flake8 disagree on how to place operators
+ignore = E203, W503
+max-line-length = 88
+max-complexity = 18
+select = B,C,E,F,W,T4,B9
+# Provide a comma-separated list of glob patterns to exclude from checks.
+exclude =
+    # git folder
+    .git,
+    # vs code folder
+    .vscode,
+    # python cache
+    __pycache__,
+    build, dist, tutorials, website
+# Provide a comma-separate list of glob patterns to include for checks.
+filename =
+    *.py
