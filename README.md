@@ -43,13 +43,16 @@ optional arguments:
 $ wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
 $ unzip annotations_trainval2017.zip
 $ python kmeans_anchors_ratios.py \
-       --annotations-path ./annotations/instances_train2017.json \
-       --input-size 512 \
-       --scale-bboxes True \
-       --num-runs 10 \
-       --num-anchors-ratios 3 \
-       --max-iter 300 \
-       --min-size 0
+    --annotations-path annotations/instances_train2017.json \
+    --input-size 512 \
+    --normalizes-bboxes True \
+    --num-runs 10 \
+    --num-anchors-ratios 3 \
+    --max-iter 300 \
+    --min-size 0 \
+    --iou-threshold 0.5 \
+    --anchors-sizes 32 64 128 256 512 \
+    --decimals 1
 ```
 output:
 ```
