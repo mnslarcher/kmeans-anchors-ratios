@@ -69,7 +69,7 @@ Runs avg. IoU: 80.48% ± 0.00% (mean ± std. dev. of 10 runs, 0 skipped)
 2020-05-23 16:10:28 K-Means (10 runs): 100%|████████████| 10/10 [01:39<00:00,  9.94s/it]
 ```
 
-# Updates
+## Updates
 
 * [2020-05-23] add avg. IoU between bounding boxes and anchors
 * [2020-05-23] add function to get annotations with bounding boxes without "similar" anchors
