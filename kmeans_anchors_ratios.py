@@ -13,13 +13,13 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 def _parse_args():
     parser = argparse.ArgumentParser(
-        "K-Means anchor rations calculator.",
-        usage="python kmeans_anchor_ratios.py \\\n"
+        "K-Means anchors rations calculator.",
+        usage="python kmeans_anchors_ratios.py \\\n"
         "           --annotations-path path/to/your_coco_annotations.json \\\n"
         "           --input-size 512 \\\n"
         "           --scale-bboxes True \\\n"
         "           --num-runs 10 \\\n"
-        "           --num-anchor-ratios 3 \\\n"
+        "           --num-anchors-ratios 3 \\\n"
         "           --max-iter 300 \\\n"
         "           --min-size 0",
     )
@@ -52,11 +52,11 @@ def _parse_args():
         "is returned. Default: 1.",
     )
     parser.add_argument(
-        "--num-anchor-ratios",
+        "--num-anchors-ratios",
         type=int,
         default=3,
         metavar="N",
-        help="The number of anchor_ratios to generate. Default: 3.",
+        help="The number of anchors_ratios to generate. Default: 3.",
     )
     parser.add_argument(
         "--max-iter",
@@ -167,17 +167,17 @@ def kmeans(boxes, num_clusters=3, max_iter=300, seed=None, centroid_calc_fn=np.m
     return centroids
 
 
-def get_optimal_anchor_ratios(
+def get_optimal_anchors_ratios(
     annotations_path,
     input_size,
     scale_bboxes=True,
     num_runs=1,
-    num_anchor_ratios=3,
+    num_anchors_ratios=3,
     max_iter=300,
     min_size=0,
     decimals=1,
 ):
-    """Get the optimal anchor ratios using K-Means.
+    """Get the optimal anchors ratios using K-Means.
 
     Arguments:
         annotations_path (str): path to the json annotation file in COCO format.
@@ -187,7 +187,7 @@ def get_optimal_anchor_ratios(
             input to K-Means, so that they have all an area of ​​1 (default: True).
         num_runs (int, optional) how many times to run K-Means. After the end of all
             runs the best result is returned (default: 1).
-        num_anchor_ratios (int, optional): the number of anchor_ratios to generate
+        num_anchors_ratios (int, optional): the number of anchors_ratios to generate
             (default: 3).
         max_iter (int, optional): maximum number of iterations of the K-Means algorithm
         for a single run (default: 300).
@@ -197,11 +197,11 @@ def get_optimal_anchor_ratios(
             them to the input size (default: 0).
 
     Returns:
-        anchor_ratios as a list of tuple.
+        anchors_ratios as a list of tuple.
     """
     logger.info(
         f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        "Starting the calculation of the optimal anchor ratios"
+        "Starting the calculation of the optimal anchors ratios"
     )
     logger.info(
         f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
@@ -256,7 +256,7 @@ def get_optimal_anchor_ratios(
         ncols=88,
     )
     for _ in pbar:
-        centroids = kmeans(bboxes, num_clusters=num_anchor_ratios, max_iter=max_iter)
+        centroids = kmeans(bboxes, num_clusters=num_anchors_ratios, max_iter=max_iter)
         avg_iou_perc = avg_iou(bboxes, centroids) * 100
         if np.isfinite(avg_iou_perc):
             centroids_list.append(centroids)
@@ -270,14 +270,14 @@ def get_optimal_anchor_ratios(
     assert len(centroids_list), "No run was successful, try increasing num_runs."
 
     avg_iou_argmax = np.argmax(avg_iou_perc_list)
-    # scaling to make the product of anchor ratios equal to 1
-    anchor_ratios = centroids_list[avg_iou_argmax] / np.sqrt(
+    # scaling to make the product of anchors ratios equal to 1
+    anchors_ratios = centroids_list[avg_iou_argmax] / np.sqrt(
         centroids_list[avg_iou_argmax].prod(axis=1, keepdims=True)
     )
     # rounding of values ​​(only for aesthetic reasons)
-    anchor_ratios = anchor_ratios.round(decimals)
+    anchors_ratios = anchors_ratios.round(decimals)
     # from array to list of tuple (standard format)
-    anchor_ratios = sorted([tuple(ar) for ar in anchor_ratios])
+    anchors_ratios = sorted([tuple(ar) for ar in anchors_ratios])
     logger.info(
         f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
         f"Runs avg. IoU: {np.mean(avg_iou_perc_list):.2f}% ± "
@@ -287,12 +287,12 @@ def get_optimal_anchor_ratios(
     )
     logger.info(
         f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        f"Optimal anchor ratios (avg. IoU: {avg_iou_perc_list[avg_iou_argmax]:.2f}%): "
-        f"{anchor_ratios}"
+        f"Optimal anchors ratios (avg. IoU: {avg_iou_perc_list[avg_iou_argmax]:.2f}%): "
+        f"{anchors_ratios}"
     )
-    return anchor_ratios
+    return anchors_ratios
 
 
 if __name__ == "__main__":
     args, _ = _parse_args()
-    _ = get_optimal_anchor_ratios(**vars(args))
+    _ = get_optimal_anchors_ratios(**vars(args))
