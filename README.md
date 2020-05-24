@@ -9,8 +9,8 @@ $ python kmeans_anchors_ratios.py --help
 output:
 ```
 usage: python kmeans_anchors_ratios.py \
-           --annotations-path path/to/your_coco_annotations.json \
-           --anchors-sizes 32, 64, 128, 256, 512 \
+           --instances path/to/your_coco_instances.json \
+           --anchors-sizes 32 64 128 256 512 \
            --input-size 512 \
            --normalizes-bboxes True \
            --num-runs 10 \
@@ -22,28 +22,37 @@ usage: python kmeans_anchors_ratios.py \
 
 optional arguments:
   -h, --help            show this help message and exit
-  --annotations-path N  Path to the json annotation file in COCO format.
-  --input-size N        Size to which each image is scaled before being processed by the model.
-  --normalizes-bboxes N
-                        Normalizes bounding boxes, before giving them input to K-Means, so that they have all an area of ​​1.
-                        Default: True.
-  --num-runs N          How many times to run K-Means. After the end of all runs the best result is returned. Default: 1.
-  --num-anchors-ratios N
-                        The number of anchors_ratios to generate. Default: 3.
-  --max-iter N          Maximum number of iterations of the K-Means algorithm for a single run. Default: 300.
-  --min-size N          Size to which all bounding box sizes must be stricly greater to be considered by K-Means. Filtering is
-                        applied after rescaling the bounding boxes to the same extent that the images are scaled to adapt them to the
-                        input size. Default: 0.
-  --iou-threshold N     Threshold above which anchors are assigned to ground-truth object boxes. Default: 0.5.
+  --instances N         Path to the json instances file in COCO format.
   --anchors-sizes N [N ...]
-                        List of anchors sizes. Default: [32, 64, 128, 256, 512].
-  --decimals N          Number of decimals to use when rounding anchors ratios. Default: 1.
+                        List of anchors sizes (e.g. [32, 64, 128, 256, 512]).
+  --input-size N        Size according to which each image is resized before
+                        being processed by the model.
+  --normalizes-bboxes N
+                        Normalizes bounding boxes, before giving them input to
+                        K-Means, so that they have all an area of ​​1.
+                        Default: True.
+  --num-runs N          How many times to run K-Means. After the end of all
+                        runs the best result is returned. Default: 1.
+  --num-anchors-ratios N
+                        The number of anchors ratios to generate. Default: 3.
+  --max-iter N          Maximum number of iterations of the K-Means algorithm
+                        for a single run. Default: 300.
+  --min-size N          Size to which all bounding box sizes must be stricly
+                        greater to be considered by K-Means. Filtering is
+                        applied after rescaling the bounding boxes to the same
+                        extent that the images are scaled to adapt them to the
+                        input size. Default: 0.
+  --iou-threshold N     Threshold above which anchors are assigned to ground-
+                        truth object boxes. Default: 0.5.
+  --decimals N          Number of decimals to use when rounding anchors
+                        ratios. Default: 1.
 ```
 ```bash
 $ wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
 $ unzip annotations_trainval2017.zip
 $ python kmeans_anchors_ratios.py \
-    --annotations-path path/to/your_coco_annotations.json \
+    --instances ./annotations/instances_train2017.json \
+    --anchors-sizes 32 64 128 256 512 \
     --input-size 512 \
     --normalizes-bboxes True \
     --num-runs 10 \
@@ -51,7 +60,6 @@ $ python kmeans_anchors_ratios.py \
     --max-iter 300 \
     --min-size 0 \
     --iou-threshold 0.5 \
-    --anchors-sizes 32, 64, 128, 256, 512 \
     --decimals 1
 ```
 output:
