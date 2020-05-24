@@ -13,9 +13,10 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 def _parse_args():
     parser = argparse.ArgumentParser(
-        "K-Means anchors rations calculator.",
+        "K-Means anchors ratios calculator.",
         usage="python kmeans_anchors_ratios.py \\\n"
-        "           --annotations-path path/to/your_coco_annotations.json \\\n"
+        "           --instances path/to/your_coco_instances.json \\\n"
+        "           --anchors-sizes 32 64 128 256 512 \\\n"
         "           --input-size 512 \\\n"
         "           --normalizes-bboxes True \\\n"
         "           --num-runs 10 \\\n"
@@ -23,21 +24,28 @@ def _parse_args():
         "           --max-iter 300 \\\n"
         "           --min-size 0 \\\n"
         "           --iou-threshold 0.5 \\\n"
-        "           --anchors-sizes 32 64 128 256 512 \\\n"
         "           --decimals 1",
     )
     parser.add_argument(
-        "--annotations-path",
+        "--instances",
         type=str,
         metavar="N",
-        help="Path to the json annotation file in COCO format.",
+        help="Path to the json instances file in COCO format.",
         required=True,
+    )
+    parser.add_argument(
+        "--anchors-sizes",
+        nargs="+",
+        type=int,
+        metavar="N",
+        help="List of anchors sizes (e.g. [32, 64, 128, 256, 512]).",
     )
     parser.add_argument(
         "--input-size",
         type=int,
         metavar="N",
-        help="Size to which each image is scaled before being processed by the model.",
+        help="Size according to which each image is resized before being processed by "
+        "the model.",
         required=True,
     )
     parser.add_argument(
@@ -61,7 +69,7 @@ def _parse_args():
         type=int,
         default=3,
         metavar="N",
-        help="The number of anchors_ratios to generate. Default: 3.",
+        help="The number of anchors ratios to generate. Default: 3.",
     )
     parser.add_argument(
         "--max-iter",
@@ -86,16 +94,8 @@ def _parse_args():
         type=float,
         default=0.5,
         metavar="N",
-        help="Threshold above which anchors are assigned to ground-truth object boxes. "
-        "Default: 0.5.",
-    )
-    parser.add_argument(
-        "--anchors-sizes",
-        nargs="+",
-        type=int,
-        default=[32, 64, 128, 256, 512],
-        metavar="N",
-        help="List of anchors sizes. Default: [32, 64, 128, 256, 512].",
+        help="Threshold above which anchors are assigned to ground-truth object "
+        "boxes. Default: 0.5.",
     )
     parser.add_argument(
         "--decimals",
@@ -112,8 +112,8 @@ def iou(boxes, anchors):
     n boxes and an array of k anchors.
 
     Arguments:
-        boxes (numpy.ndarray): array of shape (n, 2) of boxes' widths and heights.
-        anchors (numpy.ndarray): array of shape (k, 2) of anchors' widths and heights.
+        boxes (array_like): array of shape (n, 2) of boxes' widths and heights.
+        anchors (array_like): array of shape (k, 2) of anchors' widths and heights.
 
     Returns:
         A numpy array of shape (n, k) containing the IoU values ​​for each combination
@@ -132,13 +132,13 @@ def iou(boxes, anchors):
     return intersection_area / union_area
 
 
-def avg_iou(boxes, anchors):
+def average_iou(boxes, anchors):
     """Calculates the average Intersection over Union (IoU) between a numpy array of
     boxes and k anchors.
 
     Arguments:
-        boxes (numpy.ndarray): array of shape (n, 2) of boxes' widths and heights.
-        anchors (numpy.ndarray): array of shape (k, 2) of anchors' widths and heights.
+        boxes (array_like): array of shape (n, 2) of boxes' widths and heights.
+        anchors (array_like): array of shape (k, 2) of anchors' widths and heights.
 
     Returns:
         The average of the IoU between the boxes and their nearest anchors.
@@ -150,7 +150,7 @@ def kmeans(boxes, num_clusters=3, max_iter=300, seed=None, centroid_calc_fn=np.m
     """Calculates K-Means clustering using the Intersection over Union (IoU) metric.
 
     Arguments:
-        boxes (numpy.ndarray): array of the bounding boxes' heights and widths, with
+        boxes (array_like): array of the bounding boxes' heights and widths, with
             shape (n, 2).
         num_clusters (int): the number of clusters to form as well as the number of
             centroids to generate.
@@ -171,7 +171,7 @@ def kmeans(boxes, num_clusters=3, max_iter=300, seed=None, centroid_calc_fn=np.m
     while True:
         if i >= max_iter:
             logger.warning(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+                f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
                 "Maximum number of iterations reached, increase max_inter to do more "
                 f"iterations (max_inter = {max_iter})"
             )
@@ -193,7 +193,18 @@ def kmeans(boxes, num_clusters=3, max_iter=300, seed=None, centroid_calc_fn=np.m
     return centroids
 
 
-def get_anchors_from_ratios_and_sizes(anchors_ratios, anchors_sizes):
+def generate_anchors_given_ratios_and_sizes(anchors_ratios, anchors_sizes):
+    """Generate anchors given anchors ratios and sizes.
+
+    Arguments:
+        anchors_ratios (array_like): array of anchors ratios (e.g. [(0.7, 1.4),
+            (1.0, 1.0), (1.4, 0.7)]).
+        anchors_sizes (array_like): array of anchors sizes (e.g. [32, 64, 128, 256,
+            512]).
+
+    Returns:
+        An array of anchors.
+    """
     anchors_ratios = np.asarray(anchors_ratios)
     anchors_sizes = np.asarray(anchors_sizes).reshape(-1, 1, 1)
     return (anchors_ratios.reshape(1, *anchors_ratios.shape) * anchors_sizes).reshape(
@@ -201,37 +212,67 @@ def get_anchors_from_ratios_and_sizes(anchors_ratios, anchors_sizes):
     )
 
 
-def get_bboxes_adapted_to_input_size(annotations, input_size):
+def get_bboxes_adapted_to_input_size(instances, input_size):
+    """Extract the bounding boxes (widths and heights) from COCO-like annotations and
+    adjust them to the input size.
+
+    Arguments:
+        instances (dict): COCO-like instances.
+        input_size (int): size according to which each image is resized before being
+            processed by the model.
+
+    Returns:
+        An array of resized bounding boxes.
+    """
     # scale factors used to resize the images to the size expected by the model
     scale_factors = {
         ann["id"]: input_size / max(ann["width"], ann["height"])
-        for ann in annotations["images"]
+        for ann in instances["images"]
     }
     return np.array(
         [
             np.array(ann["bbox"][-2:]) * scale_factors[ann["image_id"]]
-            for ann in annotations["annotations"]
+            for ann in instances["annotations"]
         ]
     )
 
 
 def get_annotations_without_similar_anchors(
-    annotations,
-    anchors_ratios,
-    anchors_sizes,
-    input_size,
-    iou_threshold=0.5,
-    min_size=0,
+    instances, anchors_ratios, anchors_sizes, input_size, iou_threshold=0.5, min_size=0
 ):
-    # get bboxes adapted to the input size
-    bboxes = get_bboxes_adapted_to_input_size(annotations, input_size)
+    """Get annotations whose bounding boxes don't have similar anchors.
+
+    Arguments:
+        instances (dict): COCO-like instances.
+        anchors_ratios (array_like): array of anchors ratios (e.g. [(0.7, 1.4),
+            (1.0, 1.0), (1.4, 0.7)]).
+        anchors_sizes (array_like): array of anchors sizes (e.g. 32, 64, 128, 256,
+            512).
+        input_size (int): size according to which each image is resized before being
+            processed by the model.
+        iou_threshold (float, optional): Threshold above which anchors are assigned to
+            ground-truth object boxes. Default: 0.5.
+        min_size (int, optional): size to which all bounding boxes must be stricly
+            greater to. Filtering is applied after rescaling the bounding boxes to the
+            same extent that the images are scaled to adapt them to the input size.
+            Default: 0.
+
+    Returns:
+        All the annotations in annotations["annotations"] whose bounding boxes don't
+        have similar anchors.
+    """
+    # get bounding boxes adapted to the input size
+    bboxes = get_bboxes_adapted_to_input_size(instances, input_size)
     # filter if size < min size
     have_size_gr_min_size = np.prod(bboxes, axis=1) > min_size
     bboxes = bboxes[have_size_gr_min_size]
-    annotations = annotations["annotations"]
-    annotations = [ann for ann, cond in zip(annotations, have_size_gr_min_size) if cond]
+    annotations = [
+        ann
+        for ann, cond in zip(instances["annotations"], have_size_gr_min_size)
+        if cond
+    ]
     # get anchors
-    anchors = get_anchors_from_ratios_and_sizes(anchors_ratios, anchors_sizes)
+    anchors = generate_anchors_given_ratios_and_sizes(anchors_ratios, anchors_sizes)
     return [
         ann
         for ann, cond in zip(
@@ -242,23 +283,25 @@ def get_annotations_without_similar_anchors(
 
 
 def get_optimal_anchors_ratios(
-    annotations_path,
+    instances,
+    anchors_sizes,
     input_size,
     normalizes_bboxes=True,
     num_runs=1,
     num_anchors_ratios=3,
     max_iter=300,
-    min_size=0,
     iou_threshold=0.5,
-    anchors_sizes=[32, 64, 128, 256, 512],
+    min_size=0,
     decimals=1,
 ):
     """Get the optimal anchors ratios using K-Means.
 
     Arguments:
-        annotations_path (str): path to the json annotation file in COCO format.
-        input_size (int): size to which each image is scaled before being processed by
-            the model.
+        instances (dict): COCO-like instances.
+        anchors_sizes (array_like): array of anchors sizes (e.g. 32, 64, 128, 256,
+            512).
+        input_size (int): size according to which each image is resized before being
+            processed by the model.
         normalizes_bboxes (bool, optional) normalizes bounding boxes, before giving them
             input to K-Means, so that they have all an area of ​​1. Default: True.
         num_runs (int, optional) how many times to run K-Means. After the end of all
@@ -267,14 +310,12 @@ def get_optimal_anchors_ratios(
             Default: 3.
         max_iter (int, optional): maximum number of iterations of the K-Means algorithm
         for a single run. Default: 300.
+        iou_threshold (float, optional): Threshold above which anchors are assigned to
+            ground-truth object boxes. Default: 0.5.
         min_size (int, optional): size to which all bounding boxes must be stricly
             greater to. Filtering is applied after rescaling the bounding boxes to the
             same extent that the images are scaled to adapt them to the input size.
             Default: 0.
-        iou_threshold (float, optional): Threshold above which anchors are assigned to
-            ground-truth object boxes. Default: 0.5.
-        anchors_sizes (list, optional): List of anchors sizes. Default: [32, 64, 128,
-            256, 512].
         decimals (int, optional) . number of decimals to use when rounding anchors
             ratios. Default: 1.
 
@@ -282,26 +323,19 @@ def get_optimal_anchors_ratios(
         anchors_ratios as a list of tuple.
     """
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
         "Starting the calculation of the optimal anchors ratios"
     )
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        f"Reading annotations from {annotations_path}"
-    )
-    with open(annotations_path) as f:
-        annotations = json.load(f)
-
-    logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
         "Extracting and preprocessing bounding boxes"
     )
     # resize the bounding boxes before filtering using images scale factors
-    bboxes = get_bboxes_adapted_to_input_size(annotations, input_size)
+    bboxes = get_bboxes_adapted_to_input_size(instances, input_size)
     # filter the bounding boxes that are too small
     bboxes_ge_min_size = np.prod(bboxes, axis=1) > min_size
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
         f"Discarding {(~bboxes_ge_min_size).sum()} bounding boxes with size "
         f"lower or equal to {min_size}"
     )
@@ -318,7 +352,7 @@ def get_optimal_anchors_ratios(
     anchors_ratios_list = []
     pbar = tqdm(
         range(num_runs),
-        desc=f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+        desc=f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
         f"K-Means ({num_runs} run{'s' if num_runs > 1 else ''})",
         ncols=88,
     )
@@ -326,13 +360,13 @@ def get_optimal_anchors_ratios(
         ar = kmeans(
             normalized_bboxes, num_clusters=num_anchors_ratios, max_iter=max_iter
         )
-        avg_iou_perc = avg_iou(normalized_bboxes, ar) * 100
+        avg_iou_perc = average_iou(normalized_bboxes, ar) * 100
         if np.isfinite(avg_iou_perc):
             anchors_ratios_list.append(ar)
             avg_iou_perc_list.append(avg_iou_perc)
         else:
             logger.info(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+                f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
                 f"Skipping a run due to a numerical error in K-Means"
             )
 
@@ -346,44 +380,46 @@ def get_optimal_anchors_ratios(
     # rounding of values ​​(only for aesthetic reasons)
     anchors_ratios = anchors_ratios.round(decimals)
     # get anchors
-    anchors = get_anchors_from_ratios_and_sizes(anchors_ratios, anchors_sizes)
+    anchors = generate_anchors_given_ratios_and_sizes(anchors_ratios, anchors_sizes)
     # from array to list of tuple (standard format)
     anchors_ratios = sorted([tuple(ar) for ar in anchors_ratios])
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        f"Best run avg. IoU: {avg_iou_perc_list[avg_iou_argmax]:.2f}%\n"
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
         f"Runs avg. IoU: {np.mean(avg_iou_perc_list):.2f}% ± "
         f"{np.std(avg_iou_perc_list):.2f}% "
         f"(mean ± std. dev. of {len(anchors_ratios_list)} runs, "
         f"{num_runs - len(anchors_ratios_list)} skipped)"
     )
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        f"Avg. IoU between norm. anchors and bboxes: "
-        f"{avg_iou_perc_list[avg_iou_argmax]:.2f}%"
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
+        "Avg. IoU between bboxes and their most similar anchors after "
+        "normalizing them so that they have the same area (only the anchor ratios "
+        f"matter): {avg_iou_perc_list[avg_iou_argmax]:.2f}%"
     )
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        f"Avg. IoU between bounding boxes and their most similar anchor: "
-        f"{avg_iou(bboxes, anchors) * 100:.2f}%"
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
+        f"Avg. IoU between bboxes and their most similar anchors "
+        "(no normalization, both anchor ratios and sizes matter): "
+        f"{average_iou(bboxes, anchors) * 100:.2f}%"
     )
     annotations = get_annotations_without_similar_anchors(
-        annotations,
+        instances,
         anchors_ratios,
         anchors_sizes,
         input_size,
         iou_threshold=iou_threshold,
         min_size=min_size,
     )
-    num_without_similar_anchors = len(annotations)
+    num_anns = len(instances["annotations"])
+    num_bboxes_with_similar_anchors = num_anns - len(annotations)
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
-        f"Number of bounding boxes without similar anchors (IoU < {iou_threshold}): "
-        f" {num_without_similar_anchors}/{num_bboxes} "
-        f"({100 * num_without_similar_anchors / num_bboxes:.2f}%)"
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
+        f"Num. bboxes with similar anchors (IoU >= {iou_threshold}): "
+        f" {num_bboxes_with_similar_anchors}/{num_anns} "
+        f"({100 * num_bboxes_with_similar_anchors / num_anns:.2f}%)"
     )
     logger.info(
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
         f"Optimal anchors ratios: {anchors_ratios}"
     )
     return anchors_ratios
@@ -391,4 +427,11 @@ def get_optimal_anchors_ratios(
 
 if __name__ == "__main__":
     args, _ = _parse_args()
-    _ = get_optimal_anchors_ratios(**vars(args))
+    logger.info(
+        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] Reading {args.instances}"
+    )
+    with open(args.instances) as f:
+        args = vars(args)
+        args["instances"] = json.load(f)
+
+    _ = get_optimal_anchors_ratios(**args)
