@@ -41,7 +41,51 @@ optional arguments:
                         greater to be considered by K-Means. Filtering is
                         applied after rescaling the bounding boxes to the same
                         extent that the images are scaled to adapt them to the
-                        input size. Default: 0.
+                        input_size. min_size=32 implies that that all the
+                        bounding boxes with an area less than 1024 (32 * 32)
+                        will be filtered. Default: 0.
+  --iou-threshold N     Threshold above which anchors are assigned to ground-
+                        truth object boxes. Default: 0.5.
+  --decimals N          Number of decimals to use when rounding anchors
+                        ratios. Default: 1.
+(base) (master) kmeans-anchors-ratios
+> python kmeans_anchors_ratios.py --help
+usage: python kmeans_anchors_ratios.py \
+           --instances path/to/your_coco_instances.json \
+           --anchors-sizes 32 64 128 256 512 \
+           --input-size 512 \
+           --normalizes-bboxes True \
+           --num-runs 10 \
+           --num-anchors-ratios 3 \
+           --max-iter 300 \
+           --min-size 0 \
+           --iou-threshold 0.5 \
+           --decimals 1
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --instances N         Path to the json instances file in COCO format.
+  --anchors-sizes N [N ...]
+                        List of anchors sizes (e.g. [32, 64, 128, 256, 512]).
+  --input-size N        Size according to which each image is resized before
+                        being processed by the model.
+  --normalizes-bboxes N
+                        Normalizes bounding boxes, before giving them input to
+                        K-Means, so that they have all an area of ​​1.
+                        Default: True.
+  --num-runs N          How many times to run K-Means. After the end of all
+                        runs the best result is returned. Default: 1.
+  --num-anchors-ratios N
+                        The number of anchors ratios to generate. Default: 3.
+  --max-iter N          Maximum number of iterations of the K-Means algorithm
+                        for a single run. Default: 300.
+  --min-size N          Size to which all bounding box sizes must be stricly
+                        greater to be considered by K-Means. Filtering is
+                        applied after rescaling the bounding boxes to the same
+                        extent that the images are scaled to adapt them to the
+                        input_size. min_size=32 implies that that all the
+                        bounding boxes with an area less than or equal to 1024
+                        (32 * 32) will be filtered. Default: 0.
   --iou-threshold N     Threshold above which anchors are assigned to ground-
                         truth object boxes. Default: 0.5.
   --decimals N          Number of decimals to use when rounding anchors
