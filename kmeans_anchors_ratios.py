@@ -88,7 +88,7 @@ def _parse_args():
         "considered by K-Means. Filtering is applied after rescaling the bounding "
         "boxes to the same extent that the images are scaled to adapt them to the "
         "input_size. min_size=32 implies that that all the bounding boxes with an "
-        "area less than 1024 (32 * 32) will be filtered. Default: 0.",
+        "area less than or equal to 1024 (32 * 32) will be filtered. Default: 0.",
     )
     parser.add_argument(
         "--iou-threshold",
@@ -257,7 +257,7 @@ def get_annotations_without_similar_anchors(
             greater to. Filtering is applied after rescaling the bounding boxes to the
             same extent that the images are scaled to adapt them to the input size.
             min_size=32 implies that that all the bounding boxes with an area less
-            than 1024 (32 * 32) will be filtered. Default: 0.
+            than or equal to 1024 (32 * 32) will be filtered. Default: 0.
 
     Returns:
         All the annotations in annotations["annotations"] whose bounding boxes don't
@@ -318,7 +318,7 @@ def get_optimal_anchors_ratios(
             greater to. Filtering is applied after rescaling the bounding boxes to the
             same extent that the images are scaled to adapt them to the input size.
             min_size=32 implies that that all the bounding boxes with an area less
-            than 1024 (32 * 32) will be filtered. Default: 0.
+            than or equal to 1024 (32 * 32) will be filtered. Default: 0.
         decimals (int, optional) . number of decimals to use when rounding anchors
             ratios. Default: 1.
 
