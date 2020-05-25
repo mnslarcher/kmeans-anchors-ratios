@@ -87,7 +87,8 @@ def _parse_args():
         help="Size to which all bounding box sizes must be stricly greater to be "
         "considered by K-Means. Filtering is applied after rescaling the bounding "
         "boxes to the same extent that the images are scaled to adapt them to the "
-        "input size. Default: 0.",
+        "input_size. min_size=32 implies that that all the bounding boxes with an "
+        "area less than 1024 (32 * 32) will be filtered. Default: 0.",
     )
     parser.add_argument(
         "--iou-threshold",
@@ -255,7 +256,8 @@ def get_annotations_without_similar_anchors(
         min_size (int, optional): size to which all bounding boxes must be stricly
             greater to. Filtering is applied after rescaling the bounding boxes to the
             same extent that the images are scaled to adapt them to the input size.
-            Default: 0.
+            min_size=32 implies that that all the bounding boxes with an area less
+            than 1024 (32 * 32) will be filtered. Default: 0.
 
     Returns:
         All the annotations in annotations["annotations"] whose bounding boxes don't
@@ -264,7 +266,7 @@ def get_annotations_without_similar_anchors(
     # get bounding boxes adapted to the input size
     bboxes = get_bboxes_adapted_to_input_size(instances, input_size)
     # filter if size < min size
-    have_size_gr_min_size = np.prod(bboxes, axis=1) > min_size
+    have_size_gr_min_size = np.prod(bboxes, axis=1) > min_size ** 2
     bboxes = bboxes[have_size_gr_min_size]
     annotations = [
         ann
@@ -315,7 +317,8 @@ def get_optimal_anchors_ratios(
         min_size (int, optional): size to which all bounding boxes must be stricly
             greater to. Filtering is applied after rescaling the bounding boxes to the
             same extent that the images are scaled to adapt them to the input size.
-            Default: 0.
+            min_size=32 implies that that all the bounding boxes with an area less
+            than 1024 (32 * 32) will be filtered. Default: 0.
         decimals (int, optional) . number of decimals to use when rounding anchors
             ratios. Default: 1.
 
@@ -333,7 +336,7 @@ def get_optimal_anchors_ratios(
     # resize the bounding boxes before filtering using images scale factors
     bboxes = get_bboxes_adapted_to_input_size(instances, input_size)
     # filter the bounding boxes that are too small
-    bboxes_ge_min_size = np.prod(bboxes, axis=1) > min_size
+    bboxes_ge_min_size = np.prod(bboxes, axis=1) > min_size ** 2
     logger.info(
         f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
         f"Discarding {(~bboxes_ge_min_size).sum()} bounding boxes with size "
