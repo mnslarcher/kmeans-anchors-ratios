@@ -83,10 +83,10 @@ output:
 80.48%
 [06/13 12:58:33] Default anchors ratios: [(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)]
         Avg. IoU between bboxes and their most similar default anchors, no norm. (both ratios and sizes matter): 55.16%
-        Num. bboxes without similar default anchors (IoU >= 0.5):  253049/860001 (29.42%)
+        Num. bboxes without similar default anchors (IoU < 0.5):  253049/860001 (29.42%)
 [06/13 12:58:37] K-Means anchors ratios: [(0.6, 1.5), (1.0, 1.0), (1.4, 0.7)]
         Avg. IoU between bboxes and their most similar K-Means anchors, no norm. (both ratios and sizes matter): 55.72%
-        Num. bboxes without similar K-Means anchors (IoU >= 0.5):  240788/860001 (28.00%)
+        Num. bboxes without similar K-Means anchors (IoU < 0.5):  240788/860001 (28.00%)
 [06/13 12:58:37] K-Means anchors have an IoU < 50% with bboxes in 1.43% less cases than the default anchors, you should consider to use them
 ```
 For more infos see the [tutorial](tutorial.ipynb).

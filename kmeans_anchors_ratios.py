@@ -434,7 +434,7 @@ def get_optimal_anchors_ratios(
         f"{average_iou(bboxes, default_anchors) * 100:.2f}%"
     )
     logger.info(
-        f"\tNum. bboxes without similar default anchors (IoU >= {iou_threshold}): "
+        f"\tNum. bboxes without similar default anchors (IoU < {iou_threshold}): "
         f" {num_bboxes_without_similar_default_anchors}/{num_anns} "
         f"({default_perc_without:.2f}%)"
     )
@@ -461,7 +461,7 @@ def get_optimal_anchors_ratios(
         f"{average_iou(bboxes, anchors) * 100:.2f}%"
     )
     logger.info(
-        f"\tNum. bboxes without similar K-Means anchors (IoU >= {iou_threshold}): "
+        f"\tNum. bboxes without similar K-Means anchors (IoU < {iou_threshold}): "
         f" {num_bboxes_without_similar_anchors}/{num_anns} "
         f"({perc_without:.2f}%)"
     )
