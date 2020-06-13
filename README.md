@@ -2,7 +2,7 @@
 
 ## Example of usage
 
-```bash
+```
 $ pip install -r requirements.txt
 $ python kmeans_anchors_ratios.py --help
 ```
@@ -13,12 +13,13 @@ usage: python kmeans_anchors_ratios.py \
            --anchors-sizes 32 64 128 256 512 \
            --input-size 512 \
            --normalizes-bboxes True \
-           --num-runs 10 \
+           --num-runs 3 \
            --num-anchors-ratios 3 \
            --max-iter 300 \
            --min-size 0 \
            --iou-threshold 0.5 \
-           --decimals 1
+           --decimals 1 \
+           --default-anchors-ratios '[(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)]'
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -48,8 +49,13 @@ optional arguments:
                         truth object boxes. Default: 0.5.
   --decimals N          Number of decimals to use when rounding anchors
                         ratios. Default: 1.
+  --default-anchors-ratios N
+                        List of anchors ratios to be compared with those found
+                        by K-Means. It must be passed as a string, e.g.
+                        '[(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)]'. Default:
+                        [(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)].
 ```
-```bash
+```
 $ wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
 $ unzip annotations_trainval2017.zip
 $ python kmeans_anchors_ratios.py \
@@ -57,28 +63,36 @@ $ python kmeans_anchors_ratios.py \
     --anchors-sizes 32 64 128 256 512 \
     --input-size 512 \
     --normalizes-bboxes True \
-    --num-runs 10 \
+    --num-runs 3 \
     --num-anchors-ratios 3 \
     --max-iter 300 \
     --min-size 0 \
     --iou-threshold 0.5 \
-    --decimals 1
+    --decimals 1 \
+    --default-anchors-ratios '[(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)]'
 ```
 output:
 ```
-[05/24 14:20:50] Starting the calculation of the optimal anchors ratios
-[05/24 14:20:50] Extracting and preprocessing bounding boxes
-[05/24 14:20:53] Discarding 2 bounding boxes with size lower or equal to 0
-[05/24 14:20:53] K-Means (10 runs): 100%|███████████████| 10/10 [01:41<00:00, 10.17s/it]
-[05/24 14:22:34] Runs avg. IoU: 80.48% ± 0.00% (mean ± std. dev. of 10 runs, 0 skipped)
-[05/24 14:22:34] Avg. IoU between bboxes and their most similar anchors after normalizing them so that they have the same area (only the anchor ratios matter): 80.48%
-[05/24 14:22:34] Avg. IoU between bboxes and their most similar anchors (no normalization, both anchor ratios and sizes matter): 61.02%
-[05/24 14:22:40] Num. bboxes with similar anchors (IoU >= 0.5):  620506/860001 (72.15%)
-[05/24 14:22:40] Optimal anchors ratios: [(0.6, 1.5), (1.0, 1.0), (1.4, 0.7)]
+[06/13 12:57:38] Reading ./annotations/instances_train2017.json
+[06/13 12:57:54] Starting the calculation of the optimal anchors ratios
+[06/13 12:57:54] Extracting and preprocessing bounding boxes
+[06/13 12:57:57] Discarding 2 bounding boxes with size lower or equal to 0
+[06/13 12:57:57] K-Means (3 runs): 100%|██████████████████| 3/3 [00:33<00:00, 11.06s/it]
+        Runs avg. IoU: 80.48% ± 0.00% (mean ± std. dev. of 3 runs, 0 skipped)
+        Avg. IoU between bboxes and their most similar anchors after norm. them to make their area equal (only ratios matter):
+80.48%
+[06/13 12:58:33] Default anchors ratios: [(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)]
+        Avg. IoU between bboxes and their most similar default anchors, no norm. (both ratios and sizes matter): 55.16%
+        Num. bboxes without similar default anchors (IoU >= 0.5):  253049/860001 (29.42%)
+[06/13 12:58:37] K-Means anchors ratios: [(0.6, 1.5), (1.0, 1.0), (1.4, 0.7)]
+        Avg. IoU between bboxes and their most similar K-Means anchors, no norm. (both ratios and sizes matter): 55.72%
+        Num. bboxes without similar K-Means anchors (IoU >= 0.5):  240788/860001 (28.00%)
+[06/13 12:58:37] K-Means anchors have an IoU < 50% with bboxes in 1.43% less cases than the default anchors, you should consider to use them
 ```
 For more infos see the [tutorial](tutorial.ipynb).
 ## Updates
 
+* [2020-06-13] added a comparision with the default anchors ratios, as suggested by @zylo117
 * [2020-05-23] added avg. IoU between bounding boxes and anchors
 * [2020-05-23] added a function to get annotations whose bounding boxes don't have similar anchors
 * [2020-05-23] added a function to generate anchors given ratios and sizes

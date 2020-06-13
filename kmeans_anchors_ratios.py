@@ -19,12 +19,13 @@ def _parse_args():
         "           --anchors-sizes 32 64 128 256 512 \\\n"
         "           --input-size 512 \\\n"
         "           --normalizes-bboxes True \\\n"
-        "           --num-runs 10 \\\n"
+        "           --num-runs 3 \\\n"
         "           --num-anchors-ratios 3 \\\n"
         "           --max-iter 300 \\\n"
         "           --min-size 0 \\\n"
         "           --iou-threshold 0.5 \\\n"
-        "           --decimals 1",
+        "           --decimals 1 \\\n"
+        "           --default-anchors-ratios '[(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)]'",
     )
     parser.add_argument(
         "--instances",
@@ -104,6 +105,15 @@ def _parse_args():
         default=1,
         metavar="N",
         help="Number of decimals to use when rounding anchors ratios. Default: 1.",
+    )
+    parser.add_argument(
+        "--default-anchors-ratios",
+        type=eval,
+        default=[(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)],
+        metavar="N",
+        help="List of anchors ratios to be compared with those found by K-Means. "
+        "It must be passed as a string, e.g. '[(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)]'. "
+        "Default: [(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)].",
     )
     return parser.parse_known_args()
 
@@ -295,6 +305,7 @@ def get_optimal_anchors_ratios(
     iou_threshold=0.5,
     min_size=0,
     decimals=1,
+    default_anchors_ratios=[(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)],
 ):
     """Get the optimal anchors ratios using K-Means.
 
@@ -308,7 +319,7 @@ def get_optimal_anchors_ratios(
             input to K-Means, so that they have all an area of ​​1. Default: True.
         num_runs (int, optional) how many times to run K-Means. After the end of all
             runs the best result is returned. Default: 1.
-        num_anchors_ratios (int, optional): the number of anchors_ratios to generate
+        num_anchors_ratios (int, optional): the number of anchors_ratios to generate.
             Default: 3.
         max_iter (int, optional): maximum number of iterations of the K-Means algorithm
         for a single run. Default: 300.
@@ -319,8 +330,10 @@ def get_optimal_anchors_ratios(
             same extent that the images are scaled to adapt them to the input size.
             min_size=32 implies that that all the bounding boxes with an area less
             than or equal to 1024 (32 * 32) will be filtered. Default: 0.
-        decimals (int, optional) . number of decimals to use when rounding anchors
+        decimals (int, optional): number of decimals to use when rounding anchors
             ratios. Default: 1.
+        default_anchors_ratios (list, optional): list of anchors ratios to be compared
+            with those found by K-Means. Default: [(0.7, 1.4), (1.0, 1.0), (1.4, 0.7)].
 
     Returns:
         anchors_ratios as a list of tuple.
@@ -370,7 +383,7 @@ def get_optimal_anchors_ratios(
         else:
             logger.info(
                 f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
-                f"Skipping a run due to a numerical error in K-Means"
+                f"Skipping a run due to numerical errors in K-Means"
             )
 
     assert len(anchors_ratios_list), "No run was successful, try increasing num_runs."
@@ -382,29 +395,52 @@ def get_optimal_anchors_ratios(
     )
     # rounding of values ​​(only for aesthetic reasons)
     anchors_ratios = anchors_ratios.round(decimals)
-    # get anchors
-    anchors = generate_anchors_given_ratios_and_sizes(anchors_ratios, anchors_sizes)
     # from array to list of tuple (standard format)
     anchors_ratios = sorted([tuple(ar) for ar in anchors_ratios])
     logger.info(
-        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
-        f"Runs avg. IoU: {np.mean(avg_iou_perc_list):.2f}% ± "
+        f"\tRuns avg. IoU: {np.mean(avg_iou_perc_list):.2f}% ± "
         f"{np.std(avg_iou_perc_list):.2f}% "
         f"(mean ± std. dev. of {len(anchors_ratios_list)} runs, "
         f"{num_runs - len(anchors_ratios_list)} skipped)"
     )
     logger.info(
-        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
-        "Avg. IoU between bboxes and their most similar anchors after "
-        "normalizing them so that they have the same area (only the anchor ratios "
-        f"matter): {avg_iou_perc_list[avg_iou_argmax]:.2f}%"
+        "\tAvg. IoU between bboxes and their most similar anchors after "
+        "norm. them to make their area equal (only ratios matter): "
+        f"{avg_iou_perc_list[avg_iou_argmax]:.2f}%"
     )
+    num_anns = len(instances["annotations"])
+    # get default anchors
+    default_anchors = generate_anchors_given_ratios_and_sizes(
+        default_anchors_ratios, anchors_sizes
+    )
+    # get annotations without similar default anchors
+    default_annotations = get_annotations_without_similar_anchors(
+        instances,
+        default_anchors_ratios,
+        anchors_sizes,
+        input_size,
+        iou_threshold=iou_threshold,
+        min_size=min_size,
+    )
+    num_bboxes_without_similar_default_anchors = len(default_annotations)
+    default_perc_without = 100 * num_bboxes_without_similar_default_anchors / num_anns
     logger.info(
         f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
-        f"Avg. IoU between bboxes and their most similar anchors "
-        "(no normalization, both anchor ratios and sizes matter): "
-        f"{average_iou(bboxes, anchors) * 100:.2f}%"
+        f"Default anchors ratios: {default_anchors_ratios}"
     )
+    logger.info(
+        f"\tAvg. IoU between bboxes and their most similar default anchors, "
+        "no norm. (both ratios and sizes matter): "
+        f"{average_iou(bboxes, default_anchors) * 100:.2f}%"
+    )
+    logger.info(
+        f"\tNum. bboxes without similar default anchors (IoU >= {iou_threshold}): "
+        f" {num_bboxes_without_similar_default_anchors}/{num_anns} "
+        f"({default_perc_without:.2f}%)"
+    )
+    # get K-Means anchors
+    anchors = generate_anchors_given_ratios_and_sizes(anchors_ratios, anchors_sizes)
+    # get annotations without similar K-Means anchors
     annotations = get_annotations_without_similar_anchors(
         instances,
         anchors_ratios,
@@ -413,18 +449,36 @@ def get_optimal_anchors_ratios(
         iou_threshold=iou_threshold,
         min_size=min_size,
     )
-    num_anns = len(instances["annotations"])
-    num_bboxes_with_similar_anchors = num_anns - len(annotations)
+    num_bboxes_without_similar_anchors = len(annotations)
+    perc_without = 100 * num_bboxes_without_similar_anchors / num_anns
     logger.info(
         f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
-        f"Num. bboxes with similar anchors (IoU >= {iou_threshold}): "
-        f" {num_bboxes_with_similar_anchors}/{num_anns} "
-        f"({100 * num_bboxes_with_similar_anchors / num_anns:.2f}%)"
+        f"K-Means anchors ratios: {anchors_ratios}"
     )
     logger.info(
-        f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
-        f"Optimal anchors ratios: {anchors_ratios}"
+        f"\tAvg. IoU between bboxes and their most similar K-Means anchors, "
+        "no norm. (both ratios and sizes matter): "
+        f"{average_iou(bboxes, anchors) * 100:.2f}%"
     )
+    logger.info(
+        f"\tNum. bboxes without similar K-Means anchors (IoU >= {iou_threshold}): "
+        f" {num_bboxes_without_similar_anchors}/{num_anns} "
+        f"({perc_without:.2f}%)"
+    )
+    if default_perc_without > perc_without:
+        logger.info(
+            f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
+            f"K-Means anchors have an IoU < {100 * iou_threshold:.0f}% with bboxes in "
+            f"{default_perc_without - perc_without:.2f}% less cases than the default "
+            "anchors, you should consider to use them"
+        )
+    else:
+        logger.info(
+            f"[{datetime.now().strftime('%m/%d %H:%M:%S')}] "
+            f"Default anchors have an IoU < {100 * iou_threshold:.0f}% with bboxes in "
+            f"{perc_without - default_perc_without:.2f}% less cases than the K-Means "
+            "anchors, you should consider stick with them"
+        )
     return anchors_ratios
 
 
