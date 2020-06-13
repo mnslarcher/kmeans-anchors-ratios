@@ -102,4 +102,5 @@ For more infos see the [tutorial](tutorial.ipynb).
 
 The code of this repo is mainly an adaptation of https://github.com/zhouyuangan/K-Means-Anchors.
 
-Compared to the original, this code is faster and allows some additional settings.
+Compared to the original, the K-Means implementation of this repo is more than 50x faster and some additional features are provided.
+
