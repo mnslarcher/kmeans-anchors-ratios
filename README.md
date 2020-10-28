@@ -92,6 +92,7 @@ output:
 For more infos see the [tutorial](tutorial.ipynb).
 ## Updates
 
+* [2020-10-28] fixed error about EfficientDet0 anchors inside the tutorial (thanks @RomRoc) and added code for all EfficientDets
 * [2020-06-13] added a comparision with the default anchors ratios, as suggested by @zylo117
 * [2020-05-23] added avg. IoU between bounding boxes and anchors
 * [2020-05-23] added a function to get annotations whose bounding boxes don't have similar anchors
